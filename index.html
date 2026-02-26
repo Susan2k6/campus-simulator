@@ -1,0 +1,307 @@
+aDOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Campus Sustainability Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=DM+Sans:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <div class="loader-text">Starting up...</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="header">
+    <div>
+      <div class="badge">v2.1 · <span id="badgeYrs">5</span>-Year Model</div>
+      <h1>Campus <span>Sustainability</span><br>Simulator</h1>
+      <p>Enter your campus numbers, pick your policies, and see a <span id="hdrYrs">5</span>-year forecast across energy, water, waste and carbon.</p>
+    </div>
+    <div class="steps">
+      <div class="step active" id="step1"><div class="step-num">1</div> Campus Data</div>
+      <div class="step"        id="step2"><div class="step-num">2</div> Policies</div>
+      <div class="step"        id="step3"><div class="step-num">3</div> Results</div>
+    </div>
+  </header>
+
+  <!-- ── PAGE 1 : Campus Data ──────────────────────────────── -->
+  <div class="page active" id="page1">
+    <div class="sec-title">Your Campus</div>
+    <p class="sec-sub">Fill in your current daily numbers — we'll build the rest from here.</p>
+
+    <div class="card">
+      <div class="sec-title" style="font-size:15px;margin-bottom:16px">👥 People</div>
+      <div class="card-grid">
+        <div class="field"><label>Students</label><input type="number" id="students" placeholder="e.g. 3000" min="0"/></div>
+        <div class="field"><label>Staff</label><input type="number" id="staff" placeholder="e.g. 500" min="0"/></div>
+        <div class="field">
+          <label>Hostel Residents <span class="unit">people</span></label>
+          <input type="number" id="hostelCount" placeholder="e.g. 1200" min="0"/>
+          <span class="hint">Students living on campus</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title" style="font-size:15px;margin-bottom:16px">⚡ Daily Consumption</div>
+      <div class="card-grid">
+        <div class="field">
+          <label>Energy <span class="unit">kWh/day</span></label>
+          <input type="number" id="dailyEnergy" placeholder="e.g. 15000" min="0" oninput="refreshBudgetPreview()"/>
+        </div>
+        <div class="field">
+          <label>Water <span class="unit">liters/day</span></label>
+          <input type="number" id="dailyWater" placeholder="e.g. 200000" min="0" oninput="refreshBudgetPreview()"/>
+        </div>
+        <div class="field">
+          <label>Total Waste <span class="unit">kg/day</span></label>
+          <input type="number" id="dailyWaste" placeholder="e.g. 1200" min="0" oninput="refreshBudgetPreview()"/>
+        </div>
+        <div class="field">
+          <label>Organic Waste <span class="unit">kg/day</span></label>
+          <input type="number" id="organicWaste" placeholder="e.g. 720" min="0"/>
+          <span class="hint">The organic portion of total waste</span>
+        </div>
+        <div class="field">
+          <div class="ytog-label">Simulation Period</div>
+          <div class="ytog">
+            <button id="y3"  onclick="setYears(3)">3 yrs</button>
+            <button id="y5"  onclick="setYears(5)" class="on">5 yrs</button>
+            <button id="y10" onclick="setYears(10)">10 yrs</button>
+          </div>
+          <span class="hint" id="yrsHint">Projecting <strong style="color:var(--green)">5 years</strong> ahead</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title" style="font-size:15px;margin-bottom:16px">💰 Budget</div>
+      <div class="card-grid">
+        <div class="field">
+          <label>Total Sustainability Budget <span class="unit">₹</span></label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:var(--mono);color:var(--amber)">₹</span>
+            <input type="number" id="budgetInput" placeholder="e.g. 50000000" min="0" oninput="onBudgetType()" style="border-color:var(--amber)"/>
+          </div>
+          <span class="hint" id="budgetHint">Total spend across all policies</span>
+        </div>
+        <div class="field" style="justify-content:flex-end">
+          <div style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:14px 16px">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);margin-bottom:8px">SUGGESTED BUDGET</div>
+            <div style="font-family:var(--mono);font-size:18px;color:var(--amber);margin-bottom:4px" id="sugDisplay">Fill in consumption first</div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.4">Auto-calculated from your campus scale.</div>
+            <button class="btn btn-outline" style="margin-top:10px;padding:5px 12px;font-size:11px" onclick="useSuggestedBudget()">↺ Use this</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:var(--bg);border-color:var(--border2)">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text3);margin-bottom:12px">FIXED EMISSION FACTORS</div>
+      <div style="display:flex;gap:32px;flex-wrap:wrap">
+        <div><div style="font-family:var(--mono);font-size:20px;color:var(--blue)">0.82</div><div style="font-size:11px;color:var(--text2);margin-top:2px">kg CO₂ per kWh electricity</div></div>
+        <div><div style="font-family:var(--mono);font-size:20px;color:var(--blue)">0.25</div><div style="font-size:11px;color:var(--text2);margin-top:2px">ton CO₂e per ton organic waste</div></div>
+        <div><div style="font-family:var(--mono);font-size:20px;color:var(--amber)">+3% / +2% / +2%</div><div style="font-size:11px;color:var(--text2);margin-top:2px">Annual growth: Energy / Water / Waste</div></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goTo2()">Next: Choose Policies →</button>
+    </div>
+  </div>
+
+  <!-- ── PAGE 2 : Policies ──────────────────────────────────── -->
+  <div class="page" id="page2">
+    <div class="sec-title">
+      Pick Your Policies
+      <span class="live-badge"><span class="live-dot"></span>Live Preview</span>
+    </div>
+    <p class="sec-sub">Select the initiatives you want to implement. Costs and your projected score update instantly.</p>
+
+    <div class="p2">
+      <div>
+        <div class="pol-list">
+
+          <div class="pol-card" id="pc-solar" onclick="toggle('solar')">
+            <div class="pol-check" id="chk-solar">✓</div>
+            <div>
+              <div class="pol-icon">☀️</div>
+              <div class="pol-name">Solar Panels</div>
+              <div class="pol-desc">Rooftop solar PV to generate clean electricity on-site and cut grid dependency.</div>
+              <div class="pol-tags">
+                <span class="tag-g">↓ 40% Grid Energy</span>
+                <span class="tag-g">☀ 40% Renewable</span>
+                <span class="tag-a" id="cost-solar">calculating…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pol-card" id="pc-smartEnergy" onclick="toggle('smartEnergy')">
+            <div class="pol-check" id="chk-smartEnergy">✓</div>
+            <div>
+              <div class="pol-icon">🤖</div>
+              <div class="pol-name">Smart Energy Management</div>
+              <div class="pol-desc">AI load scheduling and smart metering to eliminate energy waste across campus.</div>
+              <div class="pol-tags">
+                <span class="tag-g">↓ 15% Energy Waste</span>
+                <span class="tag-a" id="cost-smartEnergy">calculating…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pol-card" id="pc-rainwater" onclick="toggle('rainwater')">
+            <div class="pol-check" id="chk-rainwater">✓</div>
+            <div>
+              <div class="pol-icon">🌧️</div>
+              <div class="pol-name">Rainwater Harvesting</div>
+              <div class="pol-desc">Upgrade collection and filtration to reduce dependence on municipal water supply.</div>
+              <div class="pol-tags">
+                <span class="tag-g">↓ 30% Water Usage</span>
+                <span class="tag-a" id="cost-rainwater">calculating…</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pol-card" id="pc-compost" onclick="toggle('compost')">
+            <div class="pol-check" id="chk-compost">✓</div>
+            <div>
+              <div class="pol-icon">♻️</div>
+              <div class="pol-name">Composting &amp; Biogas</div>
+              <div class="pol-desc">Divert organic waste to a biogas plant — cuts landfill emissions and generates supplementary energy.</div>
+              <div class="pol-tags">
+                <span class="tag-g">↓ 35% Total Waste</span>
+                <span class="tag-g">🌿 80% Organic Capture</span>
+                <span class="tag-a" id="cost-compost">calculating…</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="goTo1()">← Back</button>
+          <button class="btn btn-primary" id="runBtn" onclick="runSim()">▶ Run 5-Year Simulation</button>
+        </div>
+      </div>
+
+      <!-- ── Summary Sidebar ─────────────────────────────── -->
+      <div class="sum-panel">
+        <div class="sum-card">
+          <div class="sum-title">Budget</div>
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
+            <span style="font-family:var(--mono);font-size:13px;color:var(--amber)">₹</span>
+            <span style="font-family:var(--mono);font-size:24px;color:#fff;font-weight:700" id="budgetDisplay">0</span>
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Set on page 1 · <a href="#" onclick="goTo1();return false" style="color:var(--green);text-decoration:none">← Edit</a></div>
+          <button class="btn btn-outline" style="width:100%;justify-content:center;font-size:11px;padding:7px" onclick="resetBudget()">↺ Use suggested (₹<span id="sugSummary">0</span>)</button>
+          <div style="margin-top:16px">
+            <div class="prog">
+              <div class="prog-row"><span class="prog-lbl">Policy costs</span><span class="prog-val" id="budgetUsed">₹ 0</span></div>
+              <div class="prog-track"><div class="prog-fill amber" id="budgetBar" style="width:0%"></div></div>
+            </div>
+            <div class="prog">
+              <div class="prog-row"><span class="prog-lbl">Remaining</span><span class="prog-val" id="budgetRem" style="color:var(--green)">₹ 0</span></div>
+              <div class="prog-track"><div class="prog-fill" id="budgetRemBar" style="width:100%"></div></div>
+            </div>
+          </div>
+          <div class="budget-warn" id="budgetWarn">⚠ You've gone over budget — deselect a policy or increase your budget on page 1.</div>
+        </div>
+
+        <div class="sum-card">
+          <div class="sum-title">Selected Policies</div>
+          <div id="polList"><div class="no-pol">Nothing selected yet</div></div>
+          <hr class="div"/>
+          <div class="sum-row"><span class="sum-lbl">Active</span><span class="sum-val" id="polCount">0 / 4</span></div>
+          <div class="sum-row"><span class="sum-lbl">Total cost</span><span class="sum-val a" id="polCost">₹ 0</span></div>
+          <div class="sum-row"><span class="sum-lbl">Remaining</span><span class="sum-val g" id="polRem">₹ 0</span></div>
+          <hr class="div"/>
+          <div class="sum-title" style="margin-bottom:10px">Year-<span id="liveYrLbl">5</span> Score Preview</div>
+          <div class="prog">
+            <div class="prog-row"><span class="prog-lbl">Sustainability Score</span><span class="prog-val" id="liveScoreLbl">—</span></div>
+            <div class="prog-track" style="height:10px"><div class="prog-fill" id="liveScoreBar" style="width:0%"></div></div>
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px">Updates as you toggle policies</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PAGE 3 : Results ───────────────────────────────────── -->
+  <div class="page" id="page3">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+      <div>
+        <div class="sec-title">Results</div>
+        <p class="sec-sub" style="margin-bottom:0"><span id="resYrs">5</span>-year projection — switch scenarios to compare</p>
+      </div>
+      <div class="scenario-tabs">
+        <button class="stab on" id="tab-selected" onclick="switchTab('selected')">Your Selection</button>
+        <button class="stab"    id="tab-nopolicy"  onclick="switchTab('nopolicy')">No Policies</button>
+        <button class="stab"    id="tab-full"       onclick="switchTab('full')">All Policies</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="score-wrap">
+      <div class="score-head">
+        <div>
+          <div class="score-head-lbl">Sustainability Score — Year <span id="scoreTitleYrs">5</span></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Carbon 40% · Water 30% · Waste 20% · Renewable 10%</div>
+        </div>
+        <div class="score-head-val" id="scoreTotal">—</div>
+      </div>
+      <div class="score-bars" id="scoreBars"></div>
+    </div>
+
+    <div class="chart-grid2">
+      <div class="chart-card"><div class="chart-title">⚡ Energy — <span class="dynYrs">5</span>yr trend</div><canvas id="cEnergy" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">💧 Water — <span class="dynYrs">5</span>yr trend</div><canvas id="cWater" height="200"></canvas></div>
+    </div>
+    <div class="chart-grid2">
+      <div class="chart-card"><div class="chart-title">🌫 Carbon — <span class="dynYrs">5</span>yr trend</div><canvas id="cCarbon" height="200"></canvas></div>
+      <div class="chart-card"><div class="chart-title">🏆 Score — <span class="dynYrs">5</span>yr trend</div><canvas id="cScore" height="200"></canvas></div>
+    </div>
+
+    <div class="chart-grid2">
+      <div class="chart-card" style="display:flex;flex-direction:column">
+        <div class="chart-title">Score breakdown — Year <span class="dynYrs">5</span></div>
+        <div class="ring-wrap" id="ringWrap"></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title" style="margin-bottom:14px">What's holding your score back</div>
+        <div id="reasons"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-title" style="font-size:15px;margin-bottom:16px">📊 Year-by-Year Breakdown</div>
+      <div style="overflow-x:auto"><table class="ytable" id="dataTable"></table></div>
+    </div>
+
+    <!-- Automated Reports -->
+    <div class="card" id="reportsCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div class="sec-title" style="font-size:15px;margin-bottom:0">📋 Automated Reports</div>
+        <button class="btn btn-outline" style="font-size:12px;padding:7px 16px" onclick="downloadReport()">⬇ Download as TXT</button>
+      </div>
+      <div class="reports-grid" id="reportsGrid"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goTo2()">← Adjust Policies</button>
+      <button class="btn btn-outline" onclick="doExport()">⬇ Export JSON</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script src="app.js"></script>
+</body>
+</html>
